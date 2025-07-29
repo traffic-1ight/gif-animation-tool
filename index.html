@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PNG透過グリッチアニメーションツール</title>
+    <script src="./gif.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .control-group h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .slider-container {
+            margin-bottom: 15px;
+        }
+
+        .slider-container label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            cursor: pointer;
+            border: none;
+        }
+
+        .value-display {
+            display: inline-block;
+            margin-left: 10px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .preview-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .preview-container {
+            text-align: center;
+        }
+
+        .preview-container h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .canvas-container {
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            background: 
+                linear-gradient(45deg, #f0f0f0 25%, transparent 25%), 
+                linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #f0f0f0 75%), 
+                linear-gradient(-45deg, transparent 75%, #f0f0f0 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 5px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #dc3545, #fd7e14);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-container {
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status-text {
+            text-align: center;
+            margin-top: 10px;
+            color: #666;
+        }
+
+        .gif-info {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+            color: #1976d2;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .preview-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 PNG透過グリッチアニメーションツール</h1>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-text">PNG画像をドラッグ&ドロップ または クリックして選択</div>
+            <button class="upload-btn" id="uploadButton">
+                📁 ファイルを選択
+            </button>
+            <input type="file" id="fileInput" class="file-input" accept="image/png" />
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <h3>🌪️ グリッチ効果</h3>
+                <div class="slider-container">
+                    <label for="glitchIntensity">強度: <span class="value-display" id="glitchValue">50</span></label>
+                    <input type="range" id="glitchIntensity" class="slider" min="0" max="100" value="50">
+                </div>
+                <div class="slider-container">
+                    <label for="glitchSpeed">速度: <span class="value-display" id="glitchSpeedValue">5</span></label>
+                    <input type="range" id="glitchSpeed" class="slider" min="1" max="10" value="5">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>📺 ノイズ効果</h3>
+                <div class="slider-container">
+                    <label for="noiseIntensity">強度: <span class="value-display" id="noiseValue">30</span></label>
+                    <input type="range" id="noiseIntensity" class="slider" min="0" max="100" value="30">
+                </div>
+                <div class="slider-container">
+                    <label for="noiseSize">粒子サイズ: <span class="value-display" id="noiseSizeValue">2</span></label>
+                    <input type="range" id="noiseSize" class="slider" min="1" max="5" value="2">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>🌈 色ずれ効果</h3>
+                <div class="slider-container">
+                    <label for="colorShift">強度: <span class="value-display" id="colorShiftValue">20</span></label>
+                    <input type="range" id="colorShift" class="slider" min="0" max="50" value="20">
+                </div>
+                <div class="slider-container">
+                    <label for="colorSpeed">変化速度: <span class="value-display" id="colorSpeedValue">3</span></label>
+                    <input type="range" id="colorSpeed" class="slider" min="1" max="10" value="3">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>⚙️ アニメーション設定</h3>
+                <div class="slider-container">
+                    <label for="frameRate">フレームレート: <span class="value-display" id="frameRateValue">10</span> FPS</label>
+                    <input type="range" id="frameRate" class="slider" min="5" max="30" value="10">
+                </div>
+                <div class="slider-container">
+                    <label for="duration">継続時間: <span class="value-display" id="durationValue">2</span> 秒</label>
+                    <input type="range" id="duration" class="slider" min="1" max="10" value="2">
+                </div>
+            </div>
+        </div>
+
+        <div class="preview-section">
+            <div class="preview-container">
+                <h3>📷 元画像</h3>
+                <div class="canvas-container">
+                    <canvas id="originalCanvas"></canvas>
+                </div>
+            </div>
+            <div class="preview-container">
+                <h3>✨ プレビュー</h3>
+                <div class="canvas-container">
+                    <canvas id="previewCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="status-text" id="statusText">処理中...</div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn btn-secondary" id="gifBtn" disabled>
+                🎬 GIF生成
+            </button>
+            <button class="btn btn-primary" id="saveBtn" disabled style="display: none;">
+                💾 保存
+            </button>
+        </div>
+
+        <div class="gif-info" id="gifInfo" style="display: none;">
+            💡 GIF生成完了！保存ボタンをクリックしてファイルをダウンロードしてください。
+        </div>
+    </div>
+
+    <script>
+        class GlitchAnimationTool {
+            constructor() {
+                this.originalImage = null;
+                this.originalCanvas = document.getElementById('originalCanvas');
+                this.previewCanvas = document.getElementById('previewCanvas');
+                this.originalCtx = this.originalCanvas.getContext('2d', { willReadFrequently: true });
+                this.previewCtx = this.previewCanvas.getContext('2d', { willReadFrequently: true });
+                this.animationId = null;
+                this.isGenerating = false;
+                this.frameCount = 0;
+                this.generatedGifBlob = null;
+                this.originalAlphaData = null; // 元画像のアルファチャンネルを保存
+                
+                this.initializeEventListeners();
+                this.initializeSliders();
+            }
+
+            initializeEventListeners() {
+                const fileInput = document.getElementById('fileInput');
+                const uploadArea = document.getElementById('uploadArea');
+                const uploadButton = document.getElementById('uploadButton');
+                
+                fileInput.addEventListener('change', (e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                        this.loadImage(e.target.files[0]);
+                    }
+                });
+                
+                uploadButton.addEventListener('click', () => {
+                    fileInput.click();
+                });
+                
+                uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    uploadArea.classList.add('dragover');
+                });
+                
+                uploadArea.addEventListener('dragleave', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    uploadArea.classList.remove('dragover');
+                });
+                
+                uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    uploadArea.classList.remove('dragover');
+                    
+                    const files = e.dataTransfer.files;
+                    if (files && files.length > 0) {
+                        this.loadImage(files[0]);
+                    }
+                });
+
+                document.getElementById('gifBtn').addEventListener('click', () => this.generateGIF());
+                document.getElementById('saveBtn').addEventListener('click', () => this.saveGIF());
+            }
+
+            initializeSliders() {
+                const sliders = [
+                    { id: 'glitchIntensity', display: 'glitchValue' },
+                    { id: 'glitchSpeed', display: 'glitchSpeedValue' },
+                    { id: 'noiseIntensity', display: 'noiseValue' },
+                    { id: 'noiseSize', display: 'noiseSizeValue' },
+                    { id: 'colorShift', display: 'colorShiftValue' },
+                    { id: 'colorSpeed', display: 'colorSpeedValue' },
+                    { id: 'frameRate', display: 'frameRateValue', suffix: ' FPS' },
+                    { id: 'duration', display: 'durationValue', suffix: ' 秒' }
+                ];
+
+                sliders.forEach(slider => {
+                    const element = document.getElementById(slider.id);
+                    const display = document.getElementById(slider.display);
+                    
+                    element.addEventListener('input', () => {
+                        display.textContent = element.value + (slider.suffix || '');
+                    });
+                });
+            }
+
+            loadImage(file) {
+                if (!file.type.includes('png')) {
+                    alert('PNG画像を選択してください。');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        // 画像サイズチェック
+                        if (img.width > 2000 || img.height > 2000) {
+                            alert('画像が大きすぎます。幅または高さが2000ピクセル以下の画像を使用してください。');
+                            return;
+                        }
+                        this.originalImage = img;
+                        this.setupCanvases();
+                        this.enableControls();
+                    };
+                    img.onerror = () => {
+                        alert('画像の読み込みに失敗しました。別のPNG画像を試してください。');
+                    };
+                    img.src = e.target.result;
+                };
+                reader.onerror = () => {
+                    alert('ファイルの読み込みに失敗しました。');
+                };
+                reader.readAsDataURL(file);
+            }
+
+            setupCanvases() {
+                const { width, height } = this.originalImage;
+
+                [this.originalCanvas, this.previewCanvas].forEach(canvas => {
+                    canvas.width = width;
+                    canvas.height = height;
+                    canvas.style.maxWidth = '100%';
+                    canvas.style.maxHeight = '400px';
+                    canvas.style.objectFit = 'contain';
+                });
+
+                this.originalCtx.drawImage(this.originalImage, 0, 0, width, height);
+                this.previewCtx.drawImage(this.originalImage, 0, 0, width, height);
+
+                // 元画像のアルファチャンネルを保存
+                const imageData = this.originalCtx.getImageData(0, 0, width, height);
+                this.originalAlphaData = new Uint8ClampedArray(imageData.data.length / 4);
+                for (let i = 0; i < imageData.data.length; i += 4) {
+                    this.originalAlphaData[i / 4] = imageData.data[i + 3];
+                }
+                
+                setTimeout(() => {
+                    this.startPreview();
+                }, 100);
+            }
+
+            enableControls() {
+                document.getElementById('gifBtn').disabled = false;
+            }
+
+            startPreview() {
+                if (this.animationId) {
+                    this.stopAnimation();
+                }
+                
+                this.frameCount = 0;
+                this.animate();
+            }
+
+            animate() {
+                if (!this.originalImage) return;
+                
+                this.applyEffects();
+                this.frameCount++;
+                
+                const frameRate = parseInt(document.getElementById('frameRate').value);
+                this.animationId = requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        this.animate();
+                    }, 1000 / frameRate);
+                });
+            }
+
+            applyEffects() {
+                const canvas = this.previewCanvas;
+                const ctx = this.previewCtx;
+                const { width, height } = canvas;
+
+                ctx.clearRect(0, 0, width, height);
+                ctx.drawImage(this.originalImage, 0, 0, width, height);
+
+                const imageData = ctx.getImageData(0, 0, width, height);
+                const data = imageData.data;
+
+                const glitchIntensity = parseInt(document.getElementById('glitchIntensity').value);
+                const glitchSpeed = parseInt(document.getElementById('glitchSpeed').value);
+                const noiseIntensity = parseInt(document.getElementById('noiseIntensity').value);
+                const noiseSize = parseInt(document.getElementById('noiseSize').value);
+                const colorShift = parseInt(document.getElementById('colorShift').value);
+                const colorSpeed = parseInt(document.getElementById('colorSpeed').value);
+
+                if (glitchIntensity > 0) {
+                    this.applyGlitchEffect(data, width, height, glitchIntensity, glitchSpeed);
+                }
+
+                if (noiseIntensity > 0) {
+                    this.applyNoiseEffect(data, width, height, noiseIntensity, noiseSize);
+                }
+
+                if (colorShift > 0) {
+                    this.applyColorShiftEffect(data, width, height, colorShift, colorSpeed);
+                }
+
+                // 元画像のアルファチャンネルを適用
+                this.applyAlphaMask(data, width, height);
+
+                ctx.putImageData(imageData, 0, 0);
+            }
+
+            applyGlitchEffect(data, width, height, intensity, speed) {
+                const time = this.frameCount * speed * 0.1;
+                const glitchAmount = Math.sin(time) * intensity * 0.01;
+                
+                for (let y = 0; y < height; y++) {
+                    if (Math.random() < intensity * 0.001) {
+                        const offset = Math.floor(Math.sin(time + y * 0.1) * glitchAmount * width);
+                        const sourceY = Math.max(0, Math.min(height - 1, y + Math.floor(Math.random() * 10 - 5)));
+                        
+                        for (let x = 0; x < width; x++) {
+                            const sourceX = (x + offset + width) % width;
+                            const sourceIndex = (sourceY * width + sourceX) * 4;
+                            const targetIndex = (y * width + x) * 4;
+                            
+                            data[targetIndex] = data[sourceIndex];
+                            data[targetIndex + 1] = data[sourceIndex + 1];
+                            data[targetIndex + 2] = data[sourceIndex + 2];
+                            // アルファ値は後でマスク適用
+                        }
+                    }
+                }
+            }
+
+            applyNoiseEffect(data, width, height, intensity, size) {
+                for (let y = 0; y < height; y += size) {
+                    for (let x = 0; x < width; x += size) {
+                        if (Math.random() < intensity * 0.01) {
+                            const noise = Math.random() * 255;
+                            
+                            for (let dy = 0; dy < size && y + dy < height; dy++) {
+                                for (let dx = 0; dx < size && x + dx < width; dx++) {
+                                    const index = ((y + dy) * width + (x + dx)) * 4;
+                                    
+                                    data[index] = Math.min(255, data[index] + noise * 0.3);
+                                    data[index + 1] = Math.min(255, data[index + 1] + noise * 0.3);
+                                    data[index + 2] = Math.min(255, data[index + 2] + noise * 0.3);
+                                    // アルファ値は後でマスク適用
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            applyColorShiftEffect(data, width, height, shift, speed) {
+                const time = this.frameCount * speed * 0.1;
+                const rShift = Math.sin(time) * shift;
+                const gShift = Math.sin(time + Math.PI * 0.66) * shift;
+                const bShift = Math.sin(time + Math.PI * 1.33) * shift;
+
+                const tempData = new Uint8ClampedArray(data);
+
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        const index = (y * width + x) * 4;
+                        
+                        const rX = Math.max(0, Math.min(width - 1, x + Math.floor(rShift)));
+                        const rIndex = (y * width + rX) * 4;
+                        data[index] = tempData[rIndex];
+
+                        const gX = Math.max(0, Math.min(width - 1, x + Math.floor(gShift)));
+                        const gIndex = (y * width + gX) * 4;
+                        data[index + 1] = tempData[gIndex + 1];
+
+                        const bX = Math.max(0, Math.min(width - 1, x + Math.floor(bShift)));
+                        const bIndex = (y * width + bX) * 4;
+                        data[index + 2] = tempData[bIndex + 2];
+
+                        // アルファ値は後でマスク適用
+                    }
+                }
+            }
+
+            applyAlphaMask(data, width, height) {
+                if (!this.originalAlphaData) {
+                    console.error('元画像のアルファデータがありません');
+                    return;
+                }
+                for (let i = 0; i < data.length / 4; i++) {
+                    data[i * 4 + 3] = this.originalAlphaData[i];
+                }
+            }
+
+            stopAnimation() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null;
+                }
+            }
+
+            applyGlitchEffectToData(data, width, height, intensity, speed, frameNumber) {
+                const time = frameNumber * speed * 0.1;
+                const glitchAmount = Math.sin(time) * intensity * 0.01;
+                
+                for (let y = 0; y < height; y++) {
+                    if (Math.random() < intensity * 0.001) {
+                        const offset = Math.floor(Math.sin(time + y * 0.1) * glitchAmount * width);
+                        const sourceY = Math.max(0, Math.min(height - 1, y + Math.floor(Math.random() * 10 - 5)));
+                        
+                        for (let x = 0; x < width; x++) {
+                            const sourceX = (x + offset + width) % width;
+                            const sourceIndex = (sourceY * width + sourceX) * 4;
+                            const targetIndex = (y * width + x) * 4;
+                            
+                            data[targetIndex] = data[sourceIndex];
+                            data[targetIndex + 1] = data[sourceIndex + 1];
+                            data[targetIndex + 2] = data[sourceIndex + 2];
+                            // アルファ値は後でマスク適用
+                        }
+                    }
+                }
+            }
+
+            applyNoiseEffectToData(data, width, height, intensity, size, frameNumber) {
+                for (let y = 0; y < height; y += size) {
+                    for (let x = 0; x < width; x += size) {
+                        if (Math.random() < intensity * 0.01) {
+                            const noise = Math.random() * 255;
+                            
+                            for (let dy = 0; dy < size && y + dy < height; dy++) {
+                                for (let dx = 0; dx < size && x + dx < width; dx++) {
+                                    const index = ((y + dy) * width + (x + dx)) * 4;
+                                    
+                                    data[index] = Math.min(255, data[index] + noise * 0.3);
+                                    data[index + 1] = Math.min(255, data[index + 1] + noise * 0.3);
+                                    data[index + 2] = Math.min(255, data[index + 2] + noise * 0.3);
+                                    // アルファ値は後でマスク適用
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            applyColorShiftEffectToData(data, width, height, shift, speed, frameNumber) {
+                const time = frameNumber * speed * 0.1;
+                const rShift = Math.sin(time) * shift;
+                const gShift = Math.sin(time + Math.PI * 0.66) * shift;
+                const bShift = Math.sin(time + Math.PI * 1.33) * shift;
+
+                const tempData = new Uint8ClampedArray(data);
+
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        const index = (y * width + x) * 4;
+                        
+                        const rX = Math.max(0, Math.min(width - 1, x + Math.floor(rShift)));
+                        const rIndex = (y * width + rX) * 4;
+                        data[index] = tempData[rIndex];
+
+                        const gX = Math.max(0, Math.min(width - 1, x + Math.floor(gShift)));
+                        const gIndex = (y * width + gX) * 4;
+                        data[index + 1] = tempData[gIndex + 1];
+
+                        const bX = Math.max(0, Math.min(width - 1, x + Math.floor(bShift)));
+                        const bIndex = (y * width + bX) * 4;
+                        data[index + 2] = tempData[bIndex + 2];
+
+                        // アルファ値は後でマスク適用
+                    }
+                }
+            }
+
+            async generateGIF() {
+                if (this.isGenerating) return;
+                
+                this.isGenerating = true;
+                
+                const progressContainer = document.getElementById('progressContainer');
+                const progressFill = document.getElementById('progressFill');
+                const statusText = document.getElementById('statusText');
+                const gifInfo = document.getElementById('gifInfo');
+                
+                progressContainer.style.display = 'block';
+                document.getElementById('gifBtn').disabled = true;
+                
+                try {
+                    statusText.textContent = '透過アニメーションGIFを生成中...';
+                    
+                    const frameRate = parseInt(document.getElementById('frameRate').value);
+                    const duration = parseInt(document.getElementById('duration').value);
+                    const totalFrames = Math.min(frameRate * duration, 30); // 最大30フレーム
+                    const delay = Math.floor(1000 / frameRate);
+                    
+                    const gifCanvas = document.createElement('canvas');
+                    gifCanvas.width = this.originalImage.width;
+                    gifCanvas.height = this.originalImage.height;
+                    const gifCtx = gifCanvas.getContext('2d', { willReadFrequently: true, alpha: true });
+                    
+                    const gif = new GIF({
+                        workers: 2,
+                        quality: 10,
+                        width: this.originalImage.width,
+                        height: this.originalImage.height,
+                        transparent: 0, // アルファ値0を透過として扱う
+                        repeat: 0,
+                        debug: true,
+                        workerScript: './gif.worker.js' // リポジトリ内のワーカースクリプト
+                    });
+
+                    const glitchIntensity = parseInt(document.getElementById('glitchIntensity').value);
+                    const glitchSpeed = parseInt(document.getElementById('glitchSpeed').value);
+                    const noiseIntensity = parseInt(document.getElementById('noiseIntensity').value);
+                    const noiseSize = parseInt(document.getElementById('noiseSize').value);
+                    const colorShift = parseInt(document.getElementById('colorShift').value);
+                    const colorSpeed = parseInt(document.getElementById('colorSpeed').value);
+
+                    for (let frame = 0; frame < totalFrames; frame++) {
+                        try {
+                            gifCtx.clearRect(0, 0, gifCanvas.width, gifCanvas.height);
+                            gifCtx.drawImage(this.originalImage, 0, 0);
+                            
+                            const imageData = gifCtx.getImageData(0, 0, gifCanvas.width, gifCanvas.height);
+                            const data = imageData.data;
+
+                            // デバッグ: アルファチャンネルの確認
+                            let hasTransparent = false;
+                            for (let i = 3; i < data.length; i += 4) {
+                                if (data[i] < 255) {
+                                    hasTransparent = true;
+                                    break;
+                                }
+                            }
+                            console.log(`フレーム ${frame + 1}: 透過ピクセル検出 = ${hasTransparent}`);
+
+                            if (glitchIntensity > 0) {
+                                this.applyGlitchEffectToData(data, gifCanvas.width, gifCanvas.height, glitchIntensity, glitchSpeed, frame);
+                            }
+                            if (noiseIntensity > 0) {
+                                this.applyNoiseEffectToData(data, gifCanvas.width, gifCanvas.height, noiseIntensity, noiseSize, frame);
+                            }
+                            if (colorShift > 0) {
+                                this.applyColorShiftEffectToData(data, gifCanvas.width, gifCanvas.height, colorShift, colorSpeed, frame);
+                            }
+
+                            // 元画像のアルファチャンネルを適用
+                            this.applyAlphaMask(data, gifCanvas.width, gifCanvas.height);
+
+                            // デバッグ: マスク適用後のアルファチャンネル確認
+                            hasTransparent = false;
+                            for (let i = 3; i < data.length; i += 4) {
+                                if (data[i] < 255) {
+                                    hasTransparent = true;
+                                    break;
+                                }
+                            }
+                            console.log(`フレーム ${frame + 1}: マスク適用後、透過ピクセル = ${hasTransparent}`);
+
+                            gifCtx.putImageData(imageData, 0, 0);
+                            gif.addFrame(gifCtx, { delay: delay, copy: true, dispose: 2 });
+                            
+                            const progress = (frame / totalFrames) * 50;
+                            progressFill.style.width = progress + '%';
+                            console.log(`フレーム ${frame + 1}/${totalFrames} 完了`);
+                            await new Promise(resolve => setTimeout(resolve, 10));
+                        } catch (frameError) {
+                            console.error(`フレーム ${frame + 1} 処理エラー:`, frameError);
+                            continue; // エラーがあっても次のフレームへ
+                        }
+                    }
+                    
+                    statusText.textContent = 'GIFファイルを生成中...';
+                    
+                    gif.on('progress', (p) => {
+                        const progress = 50 + (p * 50);
+                        progressFill.style.width = progress + '%';
+                    });
+
+                    gif.on('finished', (blob) => {
+                        console.log('GIF生成完了:', blob);
+                        this.generatedGifBlob = blob;
+                        progressContainer.style.display = 'none';
+                        progressFill.style.width = '0%';
+                        gifInfo.style.display = 'block';
+                        statusText.textContent = 'GIF生成完了！';
+                        const saveBtn = document.getElementById('saveBtn');
+                        saveBtn.style.display = 'inline-block';
+                        saveBtn.disabled = false;
+                        document.getElementById('gifBtn').disabled = false;
+                        this.isGenerating = false;
+                        setTimeout(() => {
+                            gifInfo.style.display = 'none';
+                        }, 5000);
+                    });
+
+                    gif.on('error', (error) => {
+                        console.error('GIF生成エラー詳細:', error);
+                        alert(`GIF生成中にエラーが発生しました: ${error.message || error}`);
+                        this.handleGifError();
+                    });
+
+                    gif.on('abort', () => {
+                        console.error('GIF生成が中断されました');
+                        alert('GIF生成が中断されました。');
+                        this.handleGifError();
+                    });
+
+                    gif.render();
+                    
+                } catch (error) {
+                    console.error('GIF生成エラー:', error);
+                    alert(`GIF生成中にエラーが発生しました: ${error.message || error}`);
+                    this.handleGifError();
+                }
+            }
+
+            handleGifError() {
+                const progressContainer = document.getElementById('progressContainer');
+                const progressFill = document.getElementById('progressFill');
+                const statusText = document.getElementById('statusText');
+                
+                progressContainer.style.display = 'none';
+                progressFill.style.width = '0%';
+                statusText.textContent = '';
+                
+                this.isGenerating = false;
+                document.getElementById('gifBtn').disabled = false;
+            }
+
+            saveGIF() {
+                if (!this.generatedGifBlob) {
+                    alert('まずGIFを生成してください。');
+                    return;
+                }
+
+                try {
+                    const url = URL.createObjectURL(this.generatedGifBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `glitch-animation-${Date.now()}.gif`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => {
+                        URL.revokeObjectURL(url);
+                    }, 100);
+                } catch (error) {
+                    console.error('保存エラー:', error);
+                    alert('ファイルの保存中にエラーが発生しました。');
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new GlitchAnimationTool();
+        });
+    </script>
+</body>
+</html>
